@@ -1,0 +1,60 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      40546
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      41329
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      56560
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      56599
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      59053
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      59205
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c'
+      FileOffset:      72170
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

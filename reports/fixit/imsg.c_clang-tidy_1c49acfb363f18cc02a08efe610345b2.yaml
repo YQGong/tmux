@@ -1,0 +1,55 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+Diagnostics:
+  - DiagnosticName:  clang-diagnostic-null-pointer-arithmetic
+    DiagnosticMessage:
+      Message:         arithmetic on a null pointer treated as a cast from integer to pointer is a GNU extension
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+      FileOffset:      2015
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''CMSG_SPACE'''
+        FilePath:        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/sys/socket.h'
+        FileOffset:      28163
+        Replacements:    []
+      - Message:         'expanded from macro ''__DARWIN_ALIGN32'''
+        FilePath:        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/i386/_param.h'
+        FileOffset:      1940
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        ''
+        FileOffset:      0
+        Length:          0
+  - DiagnosticName:  clang-diagnostic-cast-align
+    DiagnosticMessage:
+      Message:         'cast from ''unsigned char *'' to ''int *'' increases required alignment from 1 to 4'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+      FileOffset:      2722
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+        FileOffset:      2722
+        Length:          4294964644
+      - FilePath:        ''
+        FileOffset:      0
+        Length:          0
+  - DiagnosticName:  clang-diagnostic-cast-align
+    DiagnosticMessage:
+      Message:         'cast from ''unsigned char *'' to ''struct imsg_hdr *'' increases required alignment from 1 to 4'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+      FileOffset:      5558
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+        FileOffset:      5558
+        Length:          24
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c'
+        FileOffset:      5577
+        Length:          5
+...

@@ -1,0 +1,36 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/window.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window.c'
+      FileOffset:      27542
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window.c'
+      FileOffset:      28720
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window.c'
+      FileOffset:      29676
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window.c'
+      FileOffset:      30628
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

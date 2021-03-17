@@ -1,0 +1,17 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/cmd-resize-pane.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/cmd-resize-pane.c'
+      FileOffset:      4832
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''nitems'''
+        FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tmux.h'
+        FileOffset:      2483
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

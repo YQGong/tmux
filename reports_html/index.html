@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Plist HTML Viewer</title>
+
+    <meta charset="UTF-8">
+
+    <style type="text/css">
+      .severity-low {
+  background-color: #669603;
+}
+
+.severity-low:after {
+  content : 'L';
+}
+
+.severity-unspecified {
+  background-color: #666666;
+}
+
+.severity-unspecified:after {
+  content : 'U';
+}
+
+.severity-style {
+  background-color: #9932cc;
+}
+
+.severity-style:after {
+  content : 'S';
+}
+
+.severity-medium {
+  background-color: #a9d323;
+  color: black;
+}
+
+.severity-medium:after {
+  content : 'M';
+}
+
+.severity-high {
+  background-color: #ffa800;
+}
+
+.severity-high:after {
+  content : 'H';
+}
+
+.severity-critical {
+  background-color: #e92625;
+}
+
+.severity-critical:after {
+  content : 'C';
+}
+
+i[class*="severity-"] {
+  line-height: normal;
+  text-transform: capitalize;
+  font-size: 0.8em;
+  font-weight: bold;
+  color: white;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  text-align: center;
+  font-family: sans-serif;
+}
+
+      html, body {
+  width: 100%;
+  height: 100%;
+  padding: 0px;
+  margin: 0px;
+}
+
+div.container {
+  padding: 10px;
+}
+
+#content {
+  height: 100%;
+  display: block;
+  overflow: hidden;
+}
+
+#content > div {
+  margin: 10px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  overflow: hidden;
+  height: 97%;
+}
+
+.button {
+  background-color: #f1f1f1;
+  text-decoration: none;
+  display: inline-block;
+  padding: 8px 16px;
+  color: black;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: #ddd;
+  color: black;
+}
+
+.review-status {
+  color: white;
+  text-align: center;
+}
+
+.review-status-confirmed {
+  background-color: #e92625;
+}
+
+.review-status-false-positive {
+  background-color: grey;
+}
+
+.review-status-intentional {
+  background-color: #669603;
+}
+
+      table th {
+  font-size: 1.2em;
+  color: #fff;
+  line-height: 1.4;
+  background-color: #007ea7;
+}
+
+table th.active,
+table th.sortable:hover {
+  cursor: pointer;
+  background-color: #2da6ce;
+}
+
+table tr:nth-child(even) {
+  background-color: #f5f5f5;
+}
+
+table tr > td {
+  padding: 5px;
+}
+
+      #report-list {
+  width: 100%;
+}
+
+#report-list .bug-path-length {
+  width: 5%;
+  text-align: center;
+}
+
+#report-list .severity {
+  text-align: center;
+}
+
+    </style>
+
+    <script>
+      function setNonCompatibleBrowserMessage() {
+  document.body.innerHTML =
+    '<h2 style="margin-left: 20px;">Your browser is not compatible with CodeChecker Viewer!</h2> \
+     <p style="margin-left: 20px;">The version required for the following browsers are:</p> \
+     <ul style="margin-left: 20px;"> \
+     <li>Internet Explorer: version 9 or newer</li> \
+     <li>Firefox: version 22.0 or newer</li> \
+     </ul>';
+}
+
+// http://stackoverflow.com/questions/5916900/how-can-you-detect-the-version-of-a-browser
+var browserVersion = (function(){
+  var ua = navigator.userAgent, tem,
+    M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+
+  if (/trident/i.test(M[1])) {
+    tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
+    return 'IE ' + (tem[1] || '');
+  }
+
+  if (M[1] === 'Chrome') {
+    tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
+    if (tem != null) return tem.slice(1).join(' ').replace('OPR', 'Opera');
+  }
+
+  M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, '-?'];
+  if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
+    return M.join(' ');
+})();
+
+var pos = browserVersion.indexOf(' ');
+var browser = browserVersion.substr(0, pos);
+var version = parseInt(browserVersion.substr(pos + 1));
+
+var browserCompatible
+  = browser === 'Firefox'
+  ? version >= 22
+  : browser === 'IE'
+  ? version >= 9
+  : true;
+
+      // -------------------------------------------------------------------------
+//  Part of the CodeChecker project, under the Apache License v2.0 with
+//  LLVM Exceptions. See LICENSE for license information.
+//  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// -------------------------------------------------------------------------
+
+var BugList = {
+
+  init : function () {
+    this.initTableSort();
+    this.initBugPathLength();
+    this.initByUrl();
+  },
+
+  initTableSort : function () {
+    var that = this;
+
+    var table = document.getElementById('report-list');
+    table.querySelectorAll('th').forEach(function (column) {
+      if (that.canSort(column.id)) {
+        column.addEventListener('click', function () {
+          that.sort(column.id);
+        });
+        column.classList.add('sortable');
+      }
+    });
+  },
+
+  initBugPathLength : function () {
+    var that = this;
+
+    document.querySelectorAll('.bug-path-length').forEach(
+    function (widget) {
+      widget.style.backgroundColor =
+        that.generateRedGreenGradientColor(widget.innerHTML, 20, 0.5);
+    });
+  },
+
+  initByUrl : function () {
+    var state = {};
+    window.location.hash.substr(1).split('&').forEach(function (s) {
+      var parts = s.split('=');
+      state[parts[0]] = parts[1];
+    });
+
+    var column = state['sort'] ? state['sort'] : 'file-path';
+    var asc = state['asc'] ? !!parseInt(state['asc']) : true;
+    this.sort(column, asc);
+  },
+
+  generateRedGreenGradientColor : function (value, max, opacity) {
+    var red   = (255 * value) / max;
+    var green = (255 * (max - value)) / max;
+    var blue  = 0;
+    return 'rgba(' + parseInt(red) + ',' + parseInt(green) + ',' + blue
+      + ',' + opacity + ')';
+  },
+
+  canSort : function (columnId) {
+    return columnId === 'report-id' ||
+           columnId === 'file-path' ||
+           columnId === 'severity' ||
+           columnId === 'checker-name' ||
+           columnId === 'message' ||
+           columnId === 'bug-path-length' ||
+           columnId === 'review-status';
+  },
+
+  compare : function (columnId, a, b, asc) {
+    switch (columnId) {
+      case 'report-id':
+      case 'bug-path-length':
+        return asc
+          ? parseInt(a.innerHTML) > parseInt(b.innerHTML)
+          : parseInt(a.innerHTML) < parseInt(b.innerHTML);
+
+      case 'file-path':
+        var fileA = a.getAttribute('file');
+        var fileB = b.getAttribute('file');
+        var lineA = parseInt(a.getAttribute('line'));
+        var lineB = parseInt(b.getAttribute('line'));
+
+        if (asc) {
+          if (fileA > fileB) {
+            return true;
+          } else if (fileA === fileB) {
+            return lineA > lineB ? true : false;
+          } else {
+            return false;
+          }
+        } else {
+          if (fileA < fileB) {
+            return true;
+          } else if (fileA === fileB) {
+            return lineA < lineB ? true : false;
+          } else {
+            return false;
+          }
+        }
+
+      case 'severity':
+        return asc
+          ? a.getAttribute('severity') > b.getAttribute('severity')
+          : a.getAttribute('severity') < b.getAttribute('severity');
+
+      default:
+        return asc
+          ? a.innerHTML.toLowerCase() > b.innerHTML.toLowerCase()
+          : a.innerHTML.toLowerCase() < b.innerHTML.toLowerCase();
+    }
+  },
+
+  sort : function (columnId, asc) {
+    var rows = null,
+        switching = true,
+        i, j, x, y, minIdx;
+
+    var table = document.getElementById('report-list');
+    var column = document.getElementById(columnId);
+    var cellIndex = column.cellIndex;
+
+    if (asc === undefined) {
+      asc = column.getAttribute('sort') === 'desc' ? false : true;
+    }
+
+    var n = table.rows.length;
+    for (i = 1; i < n - 1; i++)
+    {
+      minIdx = i;
+      for (j = i + 1; j < n; j++) {
+        x = table.rows[minIdx].getElementsByTagName('td')[cellIndex];
+        y = table.rows[j].getElementsByTagName('td')[cellIndex];
+        if (this.compare(columnId, x, y, asc)) {
+          minIdx = j;
+        }
+      }
+
+      if (minIdx !== i) {
+        table.rows[i].parentNode.insertBefore(
+          table.rows[minIdx], table.rows[i]);
+      }
+    }
+
+    table.querySelectorAll('th').forEach(function (column) {
+      column.removeAttribute('sort');
+      column.classList.remove('active');
+    });
+
+    column.classList.add('active');
+    column.setAttribute('sort', asc ? 'desc' : 'asc');
+    window.location.hash = '#sort=' + columnId + '&asc=' + (asc ? 1 : 0);
+  }
+};
+
+
+      window.onload = function () {
+        if (!browserCompatible) {
+          setNonCompatibleBrowserMessage();
+        } else {
+          BugList.init()
+        }
+      }
+    </script>
+  </head>
+  <body>
+  <div class="container">
+    <a href="statistics.html" class="button">Go To Statistics</a>
+    <table id="report-list">
+      
+                <tr>
+                  <th id="report-id">&nbsp;</th>
+                  <th id="file-path">File</th>
+                  <th id="severity">Severity</th>
+                  <th id="checker-name">Checker name</th>
+                  <th id="message">Message</th>
+                  <th id="bug-path-length">Bug path length</th>
+                  <th id="review-status">Review status</th>
+                </tr>
+                  <tr>
+                    <td>1</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-display-menu.c" line="124">
+                      <a href="cmd-display-menu.c_clangsa_f79a6e8f9be8e24fed76b4eff1fd741a.plist.html#reportHash=0c3c52299cae27c61ecd9d6b61ecfc92">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-display-menu.c @ Line&nbsp;124
+                      </a>
+                    </td>
+                    <td class="severity" severity="low">
+                      <i class="severity-low"
+                         title="low"></i>
+                    </td>
+                    <td>deadcode.DeadStores</td>
+                    <td>Value stored to 'ranges' is never read</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-find.c" line="188">
+                      <a href="cmd-find.c_clang-tidy_819b78d223c763c9594db5689b4738d3.plist.html#reportHash=2291d856c785d8f1a6c1301859c10f4a">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-find.c @ Line&nbsp;188
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="1382">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=fdd678ef6468b04490552ea43ab9121b">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;1382
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="1411">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=53ad96daa093170f3326d1c38a893681">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;1411
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="2024">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=3416a8c100e18bc21bebd8d32e681744">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;2024
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>6</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="2026">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=ac5d693d91f22c962d8f9c4a35452479">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;2026
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>7</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="2130">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=8d2f31b6cb8a5d502d428613f8159b31">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;2130
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>8</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="2136">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=b552770311d6e07f9a92aa042bd0e8c3">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;2136
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>9</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c" line="2730">
+                      <a href="cmd-parse.c_clang-tidy_eedd3dc28a7fb2b994ec2ba179567f7d.plist.html#reportHash=f57dc1ae26f6f5b3772d96b5e3b1c87a">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-parse.c @ Line&nbsp;2730
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>10</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-queue.c" line="449">
+                      <a href="cmd-queue.c_clangsa_fe33dca71f69b081b6d533b3545605df.plist.html#reportHash=b48c4606d53fb1dba6d922cf317a315e">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-queue.c @ Line&nbsp;449
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">23</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>11</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-queue.c" line="709">
+                      <a href="cmd-queue.c_clangsa_fe33dca71f69b081b6d533b3545605df.plist.html#reportHash=f5cf4fea335ea042104759d581ca5750">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-queue.c @ Line&nbsp;709
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">14</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>12</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-resize-pane.c" line="171">
+                      <a href="cmd-resize-pane.c_clang-tidy_5ee084fa43c94d875421dfae97fc07b8.plist.html#reportHash=965311a1f7541a09e95a1caae939dec9">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-resize-pane.c @ Line&nbsp;171
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>13</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-source-file.c" line="149">
+                      <a href="cmd-source-file.c_clangsa_60b03b7a66f24c5c498574d9b157a1f9.plist.html#reportHash=3ed1082bd233d1b3421fbc00f1c66966">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-source-file.c @ Line&nbsp;149
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Attempt to free released memory</td>
+                    <td class="bug-path-length">17</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>14</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/cmd-source-file.c" line="180">
+                      <a href="cmd-source-file.c_clangsa_60b03b7a66f24c5c498574d9b157a1f9.plist.html#reportHash=d3594027567fe3cbe5f5d1ff51eb9306">
+                        /Users/yinqianggong/work/tmux/tmux-master/cmd-source-file.c @ Line&nbsp;180
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Attempt to free released memory</td>
+                    <td class="bug-path-length">20</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>15</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c" line="261">
+                      <a href="imsg-buffer.c_clang-tidy_f3408ac6a9ec29cbc674c0cca6b66320.plist.html#reportHash=29c419dff9f0198aadda751f367d1fb4">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c @ Line&nbsp;261
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-cast-align</td>
+                    <td>cast from 'unsigned char *' to 'int *' increases required alignment from 1 to 4</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>16</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c" line="221">
+                      <a href="imsg-buffer.c_clangsa_f3408ac6a9ec29cbc674c0cca6b66320.plist.html#reportHash=c12e4f48b2e9d202b9136b012b70da7e">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c @ Line&nbsp;221
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">14</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>17</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c" line="75">
+                      <a href="imsg.c_clang-tidy_1c49acfb363f18cc02a08efe610345b2.plist.html#reportHash=70e0c5375d962dcad7fdc4cfbf374bae">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c @ Line&nbsp;75
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-null-pointer-arithmetic</td>
+                    <td>arithmetic on a null pointer treated as a cast from integer to pointer is a GNU extension</td>
+                    <td class="bug-path-length">3</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>18</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c" line="105">
+                      <a href="imsg.c_clang-tidy_1c49acfb363f18cc02a08efe610345b2.plist.html#reportHash=f1effc1df7dc632c8bff02aa88af9fa6">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c @ Line&nbsp;105
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-cast-align</td>
+                    <td>cast from 'unsigned char *' to 'int *' increases required alignment from 1 to 4</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>19</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c" line="252">
+                      <a href="imsg.c_clang-tidy_1c49acfb363f18cc02a08efe610345b2.plist.html#reportHash=18fc8c8e67261a7321b0a076c316f41c">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c @ Line&nbsp;252
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-cast-align</td>
+                    <td>cast from 'unsigned char *' to 'struct imsg_hdr *' increases required alignment from 1 to 4</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>20</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c" line="278">
+                      <a href="imsg.c_clangsa_1c49acfb363f18cc02a08efe610345b2.plist.html#reportHash=1dd3a0770ecc91beefe6a2718ce65ca5">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/imsg.c @ Line&nbsp;278
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">12</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>21</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/reallocarray.c" line="39">
+                      <a href="reallocarray.c_clangsa_c11947feb7fa0385de03b15855e042d1.plist.html#reportHash=7a446da0f139507cca42b243abbf1399">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/reallocarray.c @ Line&nbsp;39
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>optin.portability.UnixAPI</td>
+                    <td>Call to 'realloc' has an allocation size of 0 bytes</td>
+                    <td class="bug-path-length">4</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>22</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/recallocarray.c" line="68">
+                      <a href="recallocarray.c_clangsa_807945c56d767bca559fc2489588d9c4.plist.html#reportHash=37d06edf206b82b0de10df0aad5b0254">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/recallocarray.c @ Line&nbsp;68
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>optin.portability.UnixAPI</td>
+                    <td>Call to 'malloc' has an allocation size of 0 bytes</td>
+                    <td class="bug-path-length">8</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>23</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/vis.c" line="174">
+                      <a href="vis.c_clang-tidy_59c4f242534474ae5dcd5e1217b29b55.plist.html#reportHash=7f370bd39bc2c0c8d4881da3283644b0">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/vis.c @ Line&nbsp;174
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>24</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/compat/vis.c" line="203">
+                      <a href="vis.c_clang-tidy_59c4f242534474ae5dcd5e1217b29b55.plist.html#reportHash=7b254ff2246fa6174acd64200d06f512">
+                        /Users/yinqianggong/work/tmux/tmux-master/compat/vis.c @ Line&nbsp;203
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>'signed char' to 'int' conversion; consider casting to 'unsigned char' first.</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>25</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/file.c" line="209">
+                      <a href="file.c_clang-tidy_2d24c614d4a2ab324fec3c1376107227.plist.html#reportHash=56326b3c47fe204ed8bf33f5fc99169e">
+                        /Users/yinqianggong/work/tmux/tmux-master/file.c @ Line&nbsp;209
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-format-nonliteral</td>
+                    <td>format string is not a string literal</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>26</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/file.c" line="216">
+                      <a href="file.c_clang-tidy_2d24c614d4a2ab324fec3c1376107227.plist.html#reportHash=56326b3c47fe204ed8bf33f5fc99169e">
+                        /Users/yinqianggong/work/tmux/tmux-master/file.c @ Line&nbsp;216
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-format-nonliteral</td>
+                    <td>format string is not a string literal</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>27</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/file.c" line="558">
+                      <a href="file.c_clangsa_2d24c614d4a2ab324fec3c1376107227.plist.html#reportHash=c5506b66b151a63990c96d7ea436a1b6">
+                        /Users/yinqianggong/work/tmux/tmux-master/file.c @ Line&nbsp;558
+                      </a>
+                    </td>
+                    <td class="severity" severity="low">
+                      <i class="severity-low"
+                         title="low"></i>
+                    </td>
+                    <td>deadcode.DeadStores</td>
+                    <td>Although the value stored to 'cf' is used in the enclosing expression, the value is never actually read from 'cf'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>28</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/file.c" line="717">
+                      <a href="file.c_clangsa_2d24c614d4a2ab324fec3c1376107227.plist.html#reportHash=010102993115af9b1bdab5cb0e8ca46b">
+                        /Users/yinqianggong/work/tmux/tmux-master/file.c @ Line&nbsp;717
+                      </a>
+                    </td>
+                    <td class="severity" severity="low">
+                      <i class="severity-low"
+                         title="low"></i>
+                    </td>
+                    <td>deadcode.DeadStores</td>
+                    <td>Although the value stored to 'cf' is used in the enclosing expression, the value is never actually read from 'cf'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>29</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/format-draw.c" line="71">
+                      <a href="format-draw.c_clangsa_7ff3672dbc9a8b7c4ec126acca35df94.plist.html#reportHash=4754972b273065a2acee4f5544abcf4c">
+                        /Users/yinqianggong/work/tmux/tmux-master/format-draw.c @ Line&nbsp;71
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">26</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>30</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/format.c" line="4070">
+                      <a href="format.c_clang-tidy_ab504318a501eae5d44ddd3764134008.plist.html#reportHash=8a4c6154e4d9cf0ba95412b2b3a745a1">
+                        /Users/yinqianggong/work/tmux/tmux-master/format.c @ Line&nbsp;4070
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>31</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/format.c" line="1124">
+                      <a href="format.c_clangsa_ab504318a501eae5d44ddd3764134008.plist.html#reportHash=a5a19f3acbe7cd96952a34f2fdfa436c">
+                        /Users/yinqianggong/work/tmux/tmux-master/format.c @ Line&nbsp;1124
+                      </a>
+                    </td>
+                    <td class="severity" severity="low">
+                      <i class="severity-low"
+                         title="low"></i>
+                    </td>
+                    <td>deadcode.DeadStores</td>
+                    <td>Although the value stored to 's' is used in the enclosing expression, the value is never actually read from 's'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>32</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/format.c" line="4400">
+                      <a href="format.c_clangsa_ab504318a501eae5d44ddd3764134008.plist.html#reportHash=2b42e1d85ae411da32e55d84a4fb6da8">
+                        /Users/yinqianggong/work/tmux/tmux-master/format.c @ Line&nbsp;4400
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.CallAndMessage</td>
+                    <td>1st function call argument is an uninitialized value</td>
+                    <td class="bug-path-length">24</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>33</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/grid.c" line="986">
+                      <a href="grid.c_clangsa_62f0db91c6acb3a10b349e42f858b83f.plist.html#reportHash=42913a0979668ab17cc451c8a565798f">
+                        /Users/yinqianggong/work/tmux/tmux-master/grid.c @ Line&nbsp;986
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Dereference of null pointer (loaded from variable 'lastgc')</td>
+                    <td class="bug-path-length">8</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>34</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/grid.c" line="1185">
+                      <a href="grid.c_clangsa_62f0db91c6acb3a10b349e42f858b83f.plist.html#reportHash=7e61fd3ef9c1e3ab12650f83222c080f">
+                        /Users/yinqianggong/work/tmux/tmux-master/grid.c @ Line&nbsp;1185
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'cellused' results in a dereference of a null pointer (loaded from variable 'from')</td>
+                    <td class="bug-path-length">19</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>35</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/grid.c" line="1220">
+                      <a href="grid.c_clangsa_62f0db91c6acb3a10b349e42f858b83f.plist.html#reportHash=e2b7077c75e335314c880f32b4eb960b">
+                        /Users/yinqianggong/work/tmux/tmux-master/grid.c @ Line&nbsp;1220
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.DivideZero</td>
+                    <td>Division by zero</td>
+                    <td class="bug-path-length">18</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>36</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/input.c" line="902">
+                      <a href="input.c_clangsa_2ff6d37ad61e16b635c8f619a2b3337e.plist.html#reportHash=eafff2c866a3a8dd0f61a11b9dc7d96c">
+                        /Users/yinqianggong/work/tmux/tmux-master/input.c @ Line&nbsp;902
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'transitions' results in a dereference of a null pointer (loaded from field 'state')</td>
+                    <td class="bug-path-length">7</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>37</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/job.c" line="114">
+                      <a href="job.c_clangsa_42c51c61751a047950ccc0fca30bf81b.plist.html#reportHash=061315163ee9e5e97e77befb91a01058">
+                        /Users/yinqianggong/work/tmux/tmux-master/job.c @ Line&nbsp;114
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.CallAndMessage</td>
+                    <td>1st function call argument is an uninitialized value</td>
+                    <td class="bug-path-length">6</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>38</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/job.c" line="131">
+                      <a href="job.c_clangsa_42c51c61751a047950ccc0fca30bf81b.plist.html#reportHash=4484d93792a5213bcd5ce2729c358d9f">
+                        /Users/yinqianggong/work/tmux/tmux-master/job.c @ Line&nbsp;131
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.CallAndMessage</td>
+                    <td>1st function call argument is an uninitialized value</td>
+                    <td class="bug-path-length">7</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>39</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/job.c" line="181">
+                      <a href="job.c_clangsa_42c51c61751a047950ccc0fca30bf81b.plist.html#reportHash=5fb774de31ce55b7eb834a869f149c1d">
+                        /Users/yinqianggong/work/tmux/tmux-master/job.c @ Line&nbsp;181
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.CallAndMessage</td>
+                    <td>1st function call argument is an uninitialized value</td>
+                    <td class="bug-path-length">7</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>40</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/job.c" line="184">
+                      <a href="job.c_clangsa_42c51c61751a047950ccc0fca30bf81b.plist.html#reportHash=da52875f8442fc7b174a88056b37d31d">
+                        /Users/yinqianggong/work/tmux/tmux-master/job.c @ Line&nbsp;184
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.uninitialized.Assign</td>
+                    <td>Assigned value is garbage or undefined</td>
+                    <td class="bug-path-length">9</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>41</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/layout.c" line="82">
+                      <a href="layout.c_clangsa_d6b2cc5d64fba3b8291b017f1be515ba.plist.html#reportHash=eaf33277004a989a51063cfd02e591e5">
+                        /Users/yinqianggong/work/tmux/tmux-master/layout.c @ Line&nbsp;82
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">16</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>42</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/layout.c" line="739">
+                      <a href="layout.c_clangsa_d6b2cc5d64fba3b8291b017f1be515ba.plist.html#reportHash=0710eec5936442f8c8f4bcef4c44d747">
+                        /Users/yinqianggong/work/tmux/tmux-master/layout.c @ Line&nbsp;739
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.DivideZero</td>
+                    <td>Division by zero</td>
+                    <td class="bug-path-length">34</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>43</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/log.c" line="112">
+                      <a href="log.c_clang-tidy_bf5000e68d9d890c60ec83e1492624fe.plist.html#reportHash=ba0b47599fea3b5512e639de939f30af">
+                        /Users/yinqianggong/work/tmux/tmux-master/log.c @ Line&nbsp;112
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-format-nonliteral</td>
+                    <td>format string is not a string literal</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>44</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/mode-tree.c" line="475">
+                      <a href="mode-tree.c_clangsa_13c6cf6b782241a7e534fb6d53e36746.plist.html#reportHash=8e91e0cfccdb7b14124ff053d7afac8a">
+                        /Users/yinqianggong/work/tmux/tmux-master/mode-tree.c @ Line&nbsp;475
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Dereference of null pointer</td>
+                    <td class="bug-path-length">21</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>45</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/mode-tree.c" line="723">
+                      <a href="mode-tree.c_clangsa_13c6cf6b782241a7e534fb6d53e36746.plist.html#reportHash=0bf077e2328f2f0fbbe51a653d7f839d">
+                        /Users/yinqianggong/work/tmux/tmux-master/mode-tree.c @ Line&nbsp;723
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'name' results in a dereference of a null pointer (loaded from variable 'mti')</td>
+                    <td class="bug-path-length">35</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>46</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/mode-tree.c" line="727">
+                      <a href="mode-tree.c_clangsa_13c6cf6b782241a7e534fb6d53e36746.plist.html#reportHash=5893f33d4f4ffbee0db8c6b293105a9d">
+                        /Users/yinqianggong/work/tmux/tmux-master/mode-tree.c @ Line&nbsp;727
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'name' results in a dereference of a null pointer (loaded from variable 'mti')</td>
+                    <td class="bug-path-length">35</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>47</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/proc.c" line="368">
+                      <a href="proc.c_clang-tidy_087b2dc83b9b81e332b9effbc18f855c.plist.html#reportHash=449b4c62ece9a2402f23ba1f0893f262">
+                        /Users/yinqianggong/work/tmux/tmux-master/proc.c @ Line&nbsp;368
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-deprecated-declarations</td>
+                    <td>'daemon' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead.</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>48</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/resize.c" line="367">
+                      <a href="resize.c_clangsa_282bd10f689953244f0c8aca5a9dc877.plist.html#reportHash=0b7c608c957d30d3ec3090b6ea27ea14">
+                        /Users/yinqianggong/work/tmux/tmux-master/resize.c @ Line&nbsp;367
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'statuslines' results in a dereference of a null pointer (loaded from variable 's')</td>
+                    <td class="bug-path-length">13</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>49</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/screen.c" line="63">
+                      <a href="screen.c_clangsa_1157b6d3704c7b16482d65b6e743a654.plist.html#reportHash=313cbd8f912e727728ada67848e08f19">
+                        /Users/yinqianggong/work/tmux/tmux-master/screen.c @ Line&nbsp;63
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">12</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>50</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/server-client.c" line="1665">
+                      <a href="server-client.c_clangsa_88c4f9ee4431bf9f632ef81dde3d4aa1.plist.html#reportHash=a9bb701204454951a5705405af08b54d">
+                        /Users/yinqianggong/work/tmux/tmux-master/server-client.c @ Line&nbsp;1665
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'cx' results in a dereference of a null pointer (loaded from variable 's')</td>
+                    <td class="bug-path-length">13</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>51</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/server.c" line="201">
+                      <a href="server.c_clangsa_e428be9b41b62d692cf8f1d78ad430fa.plist.html#reportHash=61b180a06a5651067edbacc6679ec5f2">
+                        /Users/yinqianggong/work/tmux/tmux-master/server.c @ Line&nbsp;201
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.CallAndMessage</td>
+                    <td>1st function call argument is an uninitialized value</td>
+                    <td class="bug-path-length">6</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>52</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/spawn.c" line="181">
+                      <a href="spawn.c_clangsa_13d2a5e83c6141ef06ba92558832a2d8.plist.html#reportHash=1c7db0e36b0c934557fd7aa393a0dab9">
+                        /Users/yinqianggong/work/tmux/tmux-master/spawn.c @ Line&nbsp;181
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'name' results in a dereference of a null pointer (loaded from variable 'w')</td>
+                    <td class="bug-path-length">8</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>53</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/spawn.c" line="185">
+                      <a href="spawn.c_clangsa_13d2a5e83c6141ef06ba92558832a2d8.plist.html#reportHash=59781b51307f44ddfda1f722bc217afb">
+                        /Users/yinqianggong/work/tmux/tmux-master/spawn.c @ Line&nbsp;185
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.NullDereference</td>
+                    <td>Access to field 'name' results in a dereference of a null pointer (loaded from variable 'w')</td>
+                    <td class="bug-path-length">8</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>54</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/style.c" line="260">
+                      <a href="style.c_clangsa_f331bfde4f4e51ed65b79f9bf1aaafc6.plist.html#reportHash=024401a007509caf5e87d465f5571b4f">
+                        /Users/yinqianggong/work/tmux/tmux-master/style.c @ Line&nbsp;260
+                      </a>
+                    </td>
+                    <td class="severity" severity="low">
+                      <i class="severity-low"
+                         title="low"></i>
+                    </td>
+                    <td>deadcode.DeadStores</td>
+                    <td>Value stored to 'comma' is never read</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>55</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/tty-features.c" line="257">
+                      <a href="tty-features.c_clang-tidy_8a456544170ff1975ee54a4307a8756c.plist.html#reportHash=d36983b55f446334a697fd3daf4ee449">
+                        /Users/yinqianggong/work/tmux/tmux-master/tty-features.c @ Line&nbsp;257
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>56</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/tty-features.c" line="262">
+                      <a href="tty-features.c_clang-tidy_8a456544170ff1975ee54a4307a8756c.plist.html#reportHash=df92f6e374d3b8e6e1b12eb0f1bb554a">
+                        /Users/yinqianggong/work/tmux/tmux-master/tty-features.c @ Line&nbsp;262
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>57</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/tty-features.c" line="282">
+                      <a href="tty-features.c_clang-tidy_8a456544170ff1975ee54a4307a8756c.plist.html#reportHash=e08204baceea19a15846aa910a5f0343">
+                        /Users/yinqianggong/work/tmux/tmux-master/tty-features.c @ Line&nbsp;282
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>58</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/tty-features.c" line="306">
+                      <a href="tty-features.c_clang-tidy_8a456544170ff1975ee54a4307a8756c.plist.html#reportHash=e08204baceea19a15846aa910a5f0343">
+                        /Users/yinqianggong/work/tmux/tmux-master/tty-features.c @ Line&nbsp;306
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>59</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/tty-term.c" line="694">
+                      <a href="tty-term.c_clangsa_fce1325c6ae9193c3f8816ffe5f0c1a2.plist.html#reportHash=b34052c7fd8a14e7fae977e8c6c34b10">
+                        /Users/yinqianggong/work/tmux/tmux-master/tty-term.c @ Line&nbsp;694
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>core.CallAndMessage</td>
+                    <td>4th function call argument is an uninitialized value</td>
+                    <td class="bug-path-length">4</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>60</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/tty-term.c" line="643">
+                      <a href="tty-term.c_clang-tidy_fce1325c6ae9193c3f8816ffe5f0c1a2.plist.html#reportHash=19f4cd26e04b6eb631321885422f215a">
+                        /Users/yinqianggong/work/tmux/tmux-master/tty-term.c @ Line&nbsp;643
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-incompatible-pointer-types-discards-qualifiers</td>
+                    <td>passing 'const char *' to parameter of type 'char *' discards qualifiers</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>61</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-buffer.c" line="113">
+                      <a href="window-buffer.c_clang-tidy_d9d90b4224e47ca456ffa272bc79d268.plist.html#reportHash=395c57ab0be820ceb3976f560fe84013">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-buffer.c @ Line&nbsp;113
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>62</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-buffer.c" line="175">
+                      <a href="window-buffer.c_clang-tidy_d9d90b4224e47ca456ffa272bc79d268.plist.html#reportHash=253eceb55b63850ef36c6a96695edc05">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-buffer.c @ Line&nbsp;175
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>63</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-client.c" line="102">
+                      <a href="window-client.c_clang-tidy_db055a00671c7d573bc848a5aae548d0.plist.html#reportHash=90d8fc3901a86e74095892226a51ee8c">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-client.c @ Line&nbsp;102
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>64</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-client.c" line="181">
+                      <a href="window-client.c_clang-tidy_db055a00671c7d573bc848a5aae548d0.plist.html#reportHash=c5406271af463934823f2a3d32e67627">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-client.c @ Line&nbsp;181
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>65</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-copy.c" line="1352">
+                      <a href="window-copy.c_clang-tidy_bfc3cff6866083bb802de295ed2bbce4.plist.html#reportHash=c78a6e811551e33d70f37d347985e2b0">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-copy.c @ Line&nbsp;1352
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>comparison between 'signed char' and 'unsigned char'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>66</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-copy.c" line="1354">
+                      <a href="window-copy.c_clang-tidy_bfc3cff6866083bb802de295ed2bbce4.plist.html#reportHash=f52eb9cdd12eb5c16eb483bd5b2d7585">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-copy.c @ Line&nbsp;1354
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>comparison between 'signed char' and 'unsigned char'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>67</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-copy.c" line="1474">
+                      <a href="window-copy.c_clang-tidy_bfc3cff6866083bb802de295ed2bbce4.plist.html#reportHash=c78a6e811551e33d70f37d347985e2b0">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-copy.c @ Line&nbsp;1474
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>comparison between 'signed char' and 'unsigned char'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>68</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-copy.c" line="1476">
+                      <a href="window-copy.c_clang-tidy_bfc3cff6866083bb802de295ed2bbce4.plist.html#reportHash=a7c36185a7ccd7985b609f43d75facb0">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-copy.c @ Line&nbsp;1476
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>bugprone-signed-char-misuse</td>
+                    <td>comparison between 'signed char' and 'unsigned char'</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>69</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-customize.c" line="216">
+                      <a href="window-customize.c_clang-tidy_8e2a7e39782159c2720974401cd3bd06.plist.html#reportHash=ef7d6864c4f7b7c59dbec4e6e41763c5">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-customize.c @ Line&nbsp;216
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>70</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="181">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=d54ffa425938c6d84f0a6b834f07bb19">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;181
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>71</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="369">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=92c9610a0d6f21ccec60e857aca17d0d">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;369
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>72</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="376">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=b834090df5a3893b747e343f3bbaedfc">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;376
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>73</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="421">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=92c9610a0d6f21ccec60e857aca17d0d">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;421
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>74</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="425">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=862b8b204fa6a15a662d74cc256287b7">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;425
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>75</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="467">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=92c9610a0d6f21ccec60e857aca17d0d">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;467
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>76</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window-tree.c" line="471">
+                      <a href="window-tree.c_clang-tidy_23463b08ea1ebe6c88f60c2fcc238f6f.plist.html#reportHash=3c75689cfe02aae30d12704c762c4790">
+                        /Users/yinqianggong/work/tmux/tmux-master/window-tree.c @ Line&nbsp;471
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>77</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window.c" line="796">
+                      <a href="window.c_clangsa_9ebcc2a3db30d8839cb6adf136b2b04f.plist.html#reportHash=cddfe8b3dd9df71a41acac43e766bc14">
+                        /Users/yinqianggong/work/tmux/tmux-master/window.c @ Line&nbsp;796
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">26</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>78</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window.c" line="1131">
+                      <a href="window.c_clangsa_9ebcc2a3db30d8839cb6adf136b2b04f.plist.html#reportHash=8d1f42e0c035e391b26260cdafe80b86">
+                        /Users/yinqianggong/work/tmux/tmux-master/window.c @ Line&nbsp;1131
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>unix.Malloc</td>
+                    <td>Use of memory after it is freed</td>
+                    <td class="bug-path-length">12</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>79</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window.c" line="1323">
+                      <a href="window.c_clang-tidy_9ebcc2a3db30d8839cb6adf136b2b04f.plist.html#reportHash=c87f6d82b40622db15000b82bdf1d270">
+                        /Users/yinqianggong/work/tmux/tmux-master/window.c @ Line&nbsp;1323
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>80</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window.c" line="1380">
+                      <a href="window.c_clang-tidy_9ebcc2a3db30d8839cb6adf136b2b04f.plist.html#reportHash=c87f6d82b40622db15000b82bdf1d270">
+                        /Users/yinqianggong/work/tmux/tmux-master/window.c @ Line&nbsp;1380
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>81</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window.c" line="1428">
+                      <a href="window.c_clang-tidy_9ebcc2a3db30d8839cb6adf136b2b04f.plist.html#reportHash=c87f6d82b40622db15000b82bdf1d270">
+                        /Users/yinqianggong/work/tmux/tmux-master/window.c @ Line&nbsp;1428
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>82</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/window.c" line="1476">
+                      <a href="window.c_clang-tidy_9ebcc2a3db30d8839cb6adf136b2b04f.plist.html#reportHash=c87f6d82b40622db15000b82bdf1d270">
+                        /Users/yinqianggong/work/tmux/tmux-master/window.c @ Line&nbsp;1476
+                      </a>
+                    </td>
+                    <td class="severity" severity="high">
+                      <i class="severity-high"
+                         title="high"></i>
+                    </td>
+                    <td>bugprone-sizeof-expression</td>
+                    <td>suspicious usage of 'sizeof(A*)'; pointer to aggregate</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>83</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/xmalloc.c" line="126">
+                      <a href="xmalloc.c_clang-tidy_fc5b98bdc48d42c8a4c29569ee171d80.plist.html#reportHash=5697210ed0243ecbdaf4051cc68b786a">
+                        /Users/yinqianggong/work/tmux/tmux-master/xmalloc.c @ Line&nbsp;126
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-format-nonliteral</td>
+                    <td>format string is not a string literal</td>
+                    <td class="bug-path-length">1</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>84</td>
+                    <td file="/Users/yinqianggong/work/tmux/tmux-master/xmalloc.c" line="155">
+                      <a href="xmalloc.c_clang-tidy_fc5b98bdc48d42c8a4c29569ee171d80.plist.html#reportHash=68b0ca19716e25e9323aced9a900b2e3">
+                        /Users/yinqianggong/work/tmux/tmux-master/xmalloc.c @ Line&nbsp;155
+                      </a>
+                    </td>
+                    <td class="severity" severity="medium">
+                      <i class="severity-medium"
+                         title="medium"></i>
+                    </td>
+                    <td>clang-diagnostic-format-nonliteral</td>
+                    <td>format string is not a string literal</td>
+                    <td class="bug-path-length">2</td>
+                    <td class="review-status review-status-">
+                      
+                    </td>
+                  </tr>
+    </table>
+  </div>
+  </body>
+</html>

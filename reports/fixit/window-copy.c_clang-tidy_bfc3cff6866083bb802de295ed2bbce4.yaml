@@ -1,0 +1,36 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/window-copy.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         'comparison between ''signed char'' and ''unsigned char'''
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window-copy.c'
+      FileOffset:      38461
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         'comparison between ''signed char'' and ''unsigned char'''
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window-copy.c'
+      FileOffset:      38508
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         'comparison between ''signed char'' and ''unsigned char'''
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window-copy.c'
+      FileOffset:      41420
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         'comparison between ''signed char'' and ''unsigned char'''
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window-copy.c'
+      FileOffset:      41467
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

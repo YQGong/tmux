@@ -1,0 +1,56 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/tty-features.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tty-features.c'
+      FileOffset:      6392
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''nitems'''
+        FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tmux.h'
+        FileOffset:      2483
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tty-features.c'
+      FileOffset:      6512
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''nitems'''
+        FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tmux.h'
+        FileOffset:      2483
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tty-features.c'
+      FileOffset:      6874
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''nitems'''
+        FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tmux.h'
+        FileOffset:      2483
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tty-features.c'
+      FileOffset:      7343
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''nitems'''
+        FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tmux.h'
+        FileOffset:      2483
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

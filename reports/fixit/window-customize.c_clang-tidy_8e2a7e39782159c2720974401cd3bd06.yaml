@@ -1,0 +1,12 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/window-customize.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-sizeof-expression
+    DiagnosticMessage:
+      Message:         'suspicious usage of ''sizeof(A*)''; pointer to aggregate'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/window-customize.c'
+      FileOffset:      5490
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

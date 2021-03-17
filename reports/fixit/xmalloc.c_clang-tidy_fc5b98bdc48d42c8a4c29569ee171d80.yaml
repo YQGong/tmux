@@ -1,0 +1,33 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/xmalloc.c'
+Diagnostics:
+  - DiagnosticName:  clang-diagnostic-format-nonliteral
+    DiagnosticMessage:
+      Message:         format string is not a string literal
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/xmalloc.c'
+      FileOffset:      2582
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/xmalloc.c'
+        FileOffset:      2582
+        Length:          0
+  - DiagnosticName:  clang-diagnostic-format-nonliteral
+    DiagnosticMessage:
+      Message:         format string is not a string literal
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/xmalloc.c'
+      FileOffset:      2995
+      Replacements:    []
+    Notes:
+      - Message:         'expanded from macro ''vsnprintf'''
+        FilePath:        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h'
+        FileOffset:      2524
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        ''
+        FileOffset:      0
+        Length:          0
+...

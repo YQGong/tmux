@@ -1,0 +1,21 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/tty-term.c'
+Diagnostics:
+  - DiagnosticName:  clang-diagnostic-incompatible-pointer-types-discards-qualifiers
+    DiagnosticMessage:
+      Message:         'passing ''const char *'' to parameter of type ''char *'' discards qualifiers'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tty-term.c'
+      FileOffset:      19887
+      Replacements:    []
+    Notes:
+      - Message:         passing argument to parameter here
+        FilePath:        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/term.h'
+        FileOffset:      36878
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/tty-term.c'
+        FileOffset:      19887
+        Length:          0
+...

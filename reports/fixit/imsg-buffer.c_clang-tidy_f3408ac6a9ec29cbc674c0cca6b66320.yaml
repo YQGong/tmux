@@ -1,0 +1,19 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c'
+Diagnostics:
+  - DiagnosticName:  clang-diagnostic-cast-align
+    DiagnosticMessage:
+      Message:         'cast from ''unsigned char *'' to ''int *'' increases required alignment from 1 to 4'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c'
+      FileOffset:      5105
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/imsg-buffer.c'
+        FileOffset:      5105
+        Length:          4294962261
+      - FilePath:        ''
+        FileOffset:      0
+        Length:          0
+...

@@ -1,0 +1,17 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/proc.c'
+Diagnostics:
+  - DiagnosticName:  clang-diagnostic-deprecated-declarations
+    DiagnosticMessage:
+      Message:         '''daemon'' is deprecated: first deprecated in macOS 10.5 - Use posix_spawn APIs instead.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/proc.c'
+      FileOffset:      8230
+      Replacements:    []
+    Notes:
+      - Message:         '''daemon'' has been explicitly marked deprecated here'
+        FilePath:        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/stdlib.h'
+        FileOffset:      11192
+        Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

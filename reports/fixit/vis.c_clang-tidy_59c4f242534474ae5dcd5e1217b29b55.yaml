@@ -1,0 +1,20 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/compat/vis.c'
+Diagnostics:
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/vis.c'
+      FileOffset:      4720
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+  - DiagnosticName:  bugprone-signed-char-misuse
+    DiagnosticMessage:
+      Message:         '''signed char'' to ''int'' conversion; consider casting to ''unsigned char'' first.'
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/compat/vis.c'
+      FileOffset:      5295
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+...

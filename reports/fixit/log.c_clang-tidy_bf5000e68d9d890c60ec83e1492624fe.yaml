@@ -1,0 +1,16 @@
+---
+MainSourceFile:  '/Users/yinqianggong/work/tmux/tmux-master/log.c'
+Diagnostics:
+  - DiagnosticName:  clang-diagnostic-format-nonliteral
+    DiagnosticMessage:
+      Message:         format string is not a string literal
+      FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/log.c'
+      FileOffset:      2255
+      Replacements:    []
+    Level:           Warning
+    BuildDirectory:  '/Users/yinqianggong/work/tmux/tmux-master'
+    Ranges:
+      - FilePath:        '/Users/yinqianggong/work/tmux/tmux-master/log.c'
+        FileOffset:      2255
+        Length:          0
+...

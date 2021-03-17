@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>diagnostics</key>
+	<array>
+		<dict>
+			<key>category</key>
+			<string>clang</string>
+			<key>check_name</key>
+			<string>clang-diagnostic-incompatible-pointer-types-discards-qualifiers</string>
+			<key>description</key>
+			<string>passing 'const char *' to parameter of type 'char *' discards qualifiers</string>
+			<key>issue_hash_content_of_line_in_context</key>
+			<string>19f4cd26e04b6eb631321885422f215a</string>
+			<key>location</key>
+			<dict>
+				<key>col</key>
+				<integer>16</integer>
+				<key>file</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>643</integer>
+			</dict>
+			<key>path</key>
+			<array>
+				<dict>
+					<key>depth</key>
+					<integer>0</integer>
+					<key>kind</key>
+					<string>event</string>
+					<key>location</key>
+					<dict>
+						<key>col</key>
+						<integer>59</integer>
+						<key>file</key>
+						<integer>1</integer>
+						<key>line</key>
+						<integer>759</integer>
+					</dict>
+					<key>message</key>
+					<string>passing argument to parameter here</string>
+				</dict>
+				<dict>
+					<key>depth</key>
+					<integer>0</integer>
+					<key>kind</key>
+					<string>event</string>
+					<key>location</key>
+					<dict>
+						<key>col</key>
+						<integer>16</integer>
+						<key>file</key>
+						<integer>0</integer>
+						<key>line</key>
+						<integer>643</integer>
+					</dict>
+					<key>message</key>
+					<string>passing 'const char *' to parameter of type 'char *' discards qualifiers</string>
+				</dict>
+			</array>
+			<key>type</key>
+			<string>clang-tidy</string>
+		</dict>
+	</array>
+	<key>files</key>
+	<array>
+		<string>/Users/yinqianggong/work/tmux/tmux-master/tty-term.c</string>
+		<string>/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/term.h</string>
+	</array>
+</dict>
+</plist>
